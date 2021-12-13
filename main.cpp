@@ -93,52 +93,129 @@ void Start()
 
 void PlayerMove()
 {
-	//获取鼠标按下时长
-	ExMessage m;//记录鼠标动作
-	clock_t start_t, stop_t;//定义结构体获取鼠标按下与松开时间
-	double t;
-	while (1)
+	while (((player.x - box[id].c_x) * (player.x - box[id].c_x) + (player.y - box[id].c_y) * (player.y - box[id].c_y)) <= 5780 || ((player.x - box[id - 1].c_x) * (player.x - box[id - 1].c_x) + (player.y - box[id - 1].c_y) * (player.y - box[id - 1].c_y)) <= 5780)
 	{
-		m = getmessage(EM_MOUSE);
-		if (m.message == WM_LBUTTONDOWN) //如果鼠标左键按下
+		//获取鼠标按下时长
+		ExMessage m;//记录鼠标动作
+		clock_t start_t, stop_t;//定义结构体获取鼠标按下与松开时间
+		double t;
+		while (1)
 		{
-			start_t = clock(); // 获取鼠标按下时间 
+			m = getmessage(EM_MOUSE);
+			if (m.message == WM_LBUTTONDOWN) //如果鼠标左键按下
+			{
+				start_t = clock(); // 获取鼠标按下时间 
+			}
+			if (m.message == WM_LBUTTONUP)//如果释放鼠标左键
+			{
+				stop_t = clock(); //获取鼠标释放时间
+				break; //跳出循环
+			}
 		}
-		if (m.message == WM_LBUTTONUP)//如果释放鼠标左键
-		{
-			stop_t = clock(); //获取鼠标释放时间
-			break; //跳出循环
-		}
-	}
-	t = (double)(stop_t - start_t);//计算鼠标按下时长
+		t = (double)(stop_t - start_t);//计算鼠标按下时长
 
-	int i;
-	BeginBatchDraw();
-	for (i = 0;i < 50;i++)
-	{
-		cleardevice();
-		if (box[id].dir == 1)
+		//玩家开始跳跃
+		int i, j;//生成计数器
+		int NeedCrossLine = 0;
+		double g = 0.3;//定义重力值
+		double vx = 5.5, vy;//定义x，y方向速度
+		double distance = 2 * t / sqrt(27);//距离
+		vy = distance / vx / 2 * g;//计算y方向出发速度
+		BeginBatchDraw();
+		id++;
+		for (i = 0;i < distance / vx;i++)
 		{
-			player.x += sqrt(3) * t / 250;
-			player.y -= t / 250;
+			if (i == 0 && player.y > ((player.x - box[id - 1].c_x) * (box[id].c_y - box[id - 1].c_y) / (box[id].c_x - box[id - 1].c_x) + box[id - 1].c_y))
+			{
+				NeedCrossLine = 1;
+			}
+			if (NeedCrossLine == 1 && player.y < ((player.x - box[id - 1].c_x) * (box[id].c_y - box[id - 1].c_y) / (box[id].c_x - box[id - 1].c_x) + box[id - 1].c_y))
+			{
+				NeedCrossLine = 0;
+			}
+			if (NeedCrossLine == 0 && player.y > ((player.x - box[id - 1].c_x) * (box[id].c_y - box[id - 1].c_y) / (box[id].c_x - box[id - 1].c_x) + box[id - 1].c_y))
+			{
+				player.y = ((player.x - box[id - 1].c_x) * (box[id].c_y - box[id - 1].c_y) / (box[id].c_x - box[id - 1].c_x) + box[id - 1].c_y);
+				break;
+			}
+			else
+			{
+				if (box[id - 1].dir == 1)
+				{
+					player.x += vx;
+					player.y -= vy;
+					vy -= g;
+				}
+				else if (box[id - 1].dir == 0)
+				{
+					player.x -= vx;
+					player.y -= vy;
+					vy -= g;
+				}
+				cleardevice();
+
+				//绘制静止盒子和玩家
+				for (j = 19;j >= 0;j--)
+				{
+					putimagePng(box[j].c_x - 151.5, box[j].c_y - 90.3, &box[j].im_box);
+				}
+				fillcircle(player.x, player.y, 10);
+				FlushBatchDraw(); //批量绘制
+				Sleep(10);
+			}
 		}
-		else if (box[id].dir == 0)
+		EndBatchDraw(); //结束批量绘图
+
+		if (((player.x - box[id].c_x) * (player.x - box[id].c_x) + (player.y - box[id].c_y) * (player.y - box[id].c_y)) <= 5780)
 		{
-			player.x -= sqrt(3) * t / 250;
-			player.y -= t / 250;
+			//score++;
+			//场景直线移动
+			BeginBatchDraw(); //开始批量绘图
+			double x_distance = 0, y_distance = 0;
+			if (box[id].dir == 1)
+			{
+				x_distance = player.x - (WIDTH / 3.0);
+				y_distance = player.y - (HEIGHT * 2.0 / 3);
+			}
+			else if (box[id].dir == 0)
+			{
+				x_distance = player.x - (WIDTH * 2.0 / 3);
+				y_distance = player.y - (HEIGHT * 2.0 / 3);
+			}
+			int n = 50; //定义帧数
+			for (i = 0;i < n;i++)
+			{
+				cleardevice(); //清屏
+				player.x -= x_distance / n; //计算每一帧玩家X移动距离
+				player.y -= y_distance / n; //计算每一帧玩家Y移动距离
+				for (j = 19;j >= 0;j--)
+				{
+					box[j].c_x -= x_distance / n; //计算每一帧玩家X移动距离
+					box[j].c_y -= y_distance / n; //计算每一帧玩家Y移动距离
+					putimagePng(box[j].c_x - 151.5, box[j].c_y - 90.3, &box[j].im_box);//
+				}
+				fillcircle(player.x, player.y, 10); //绘制玩家新位置
+
+				FlushBatchDraw(); //批量绘制
+				Sleep(20);
+			}
+			EndBatchDraw(); //结束批量绘图
 		}
-		//绘制静止盒子
-		int j;
-		for (j = 19;j >= 0;j--)
+		else if (((player.x - box[id - 1].c_x) * (player.x - box[id - 1].c_x) + (player.y - box[id - 1].c_y) * (player.y - box[id - 1].c_y)) <= 5780)
 		{
-			putimagePng(box[j].c_x - 151.5, box[j].c_y - 90.3, &box[j].im_box);
+			continue;
 		}
-		fillcircle(player.x, player.y, 10);
-		FlushBatchDraw(); //批量绘制
-		Sleep(10);
+		else break;
 	}
-	EndBatchDraw(); //结束批量绘图
+
+	//输出失败提示
+	TCHAR s[] = _T("YOU FAIL");//记录失败文字
+	setbkmode(TRANSPARENT);//设置字体背景为透明
+	settextcolor(RED);//设置文字颜色为红色
+	settextstyle(80, 80, _T("04b_03b")); // 设置文字大小、字体
+	outtextxy(WIDTH / 2 - 320, HEIGHT / 2 - 40, s); // 输出得分文字
 }
+
 int main()
 {
 	srand((unsigned)time(0)); //产生随机数种子
