@@ -82,6 +82,38 @@ int Searchid() //寻找玩家距离最近的盒子
 	return minid; //返回最小ID
 }
 
+void readRecordFile()  //读取游戏数据文件存档
+{
+	int i; //定义计数器
+	FILE* fp; //定义文件
+	fopen_s(&fp, ".\\gameRecord.dat", "w");
+	if (fp)
+	{
+		for (i = 0;i < 15;i++)
+		{
+			fscanf_s(fp, "%f %f %d %d", &box[i].c_x, &box[i].c_y, &box[i].dir, &box[i].boxid);
+		}
+		fscanf_s(fp, "%d %d %d %f %f", &id, &score, &count, &player.x, &player.y);
+		fclose(fp);
+	}
+}
+
+void writeRecordFile()  //存储游戏数据文件存档
+{
+	int i; //定义计数器
+	FILE* fp;
+	fopen_s(&fp, ".\\gameRecord.dat", "w");
+	if (fp) //如果文件存在
+	{
+		for (i = 0;i < 15;i++)
+		{
+			fprintf(fp, "%f %f %d %d", box[i].c_x, box[i].c_y, box[i].dir, box[i].boxid);
+		}
+		fprintf(fp, "%d %d %d %f %f", id, score, count, player.x, player.y);
+		fclose(fp);
+	}
+}
+
 void PrintScore(float x, float y, int fheight)
 {
 	TCHAR s[20]; // 定义字符串数组
@@ -141,7 +173,6 @@ void Failure()//输出失败文字
 	{
 		cleardevice(); //清屏
 		DrawStill(0);
-		if (i!=999)
 		fillcircle(player.x, player.y, 10); //绘制玩家
 		settextcolor(RED); //设置文字颜色为红色
 		settextstyle(0.08 * i, 0.08 * i, _T("04b_03b")); // 设置文字大小、字体
@@ -150,6 +181,63 @@ void Failure()//输出失败文字
 		Sleep(0.1);
 	}
 	EndBatchDraw();
+	Sleep(1000);
+
+	cleardevice();
+	int c = 0, t_score; //计算score位数
+	IMAGE im_score; //定义分数栏图片
+	IMAGE im_flower; //定义花朵图片
+	IMAGE im_replay; //定义重新开始图片
+	IMAGE im_exit; //定义重新开始图片
+	loadimage(&im_score, _T("./res/changlle_share1.png"));//载入开始游戏按钮图片
+	loadimage(&im_replay, _T("./res/replay2.png")); //载入重新按钮图片
+	loadimage(&im_exit, _T("./res/exit.png")); //载入继续图片
+	loadimage(&im_flower, _T("./res/flower.png"));
+	t_score = score; //临时存储分数
+	while (t_score > 0) //计算分数位数
+	{
+		c++;
+		t_score = t_score / 10;
+	}
+	//游戏结束动画
+	BeginBatchDraw();
+	for (i = 0;i < 100;i++)
+	{
+		cleardevice();
+		putimagePng(WIDTH / 2 - im_score.getwidth() / 2, 0, &im_score);//加载“分数'图片
+		putimagePng(WIDTH / 2 - im_replay.getwidth() / 2 - 80, 0.5 * i, &im_flower);
+		putimagePng(WIDTH / 2 - im_exit.getwidth() / 2, HEIGHT * 4 / 7 + im_replay.getheight() + 15, &im_exit);//加载退出按钮图片
+		putimagePng(WIDTH / 2 - im_replay.getwidth() / 2, HEIGHT * 4 / 7, &im_replay);//加载重新开始按钮图片
+		PrintScore(WIDTH / 2 - 25 * c, 200, 100); //打印份数
+		FlushBatchDraw();
+		Sleep(5);
+	}
+	EndBatchDraw();
+
+	while (1)//循环等待用户动作
+	{
+		ExMessage m; //记录鼠标动作
+		m = getmessage(EM_MOUSE); //获取鼠标动作
+		if (m.message == WM_LBUTTONDOWN)//鼠标移动到重新开始游戏按钮处并且点击
+		{
+			if ((m.x >= WIDTH / 2 - im_replay.getwidth() / 2) && (m.x <= WIDTH / 2 + im_replay.getwidth() / 2) && (m.y >= HEIGHT * 4 / 7) && (m.y <= HEIGHT * 4 / 7 + im_replay.getheight()))
+			{
+				m = getmessage(EM_MOUSE); //再次获取鼠标信息
+				if (m.message == WM_LBUTTONUP)//如果释放鼠标左键，重新开始游戏
+				{
+					cleardevice();
+					StartGame();
+					PlayerMove();
+				}
+			}
+			else if ((m.x >= WIDTH / 2 - im_exit.getwidth() / 2) && (m.x <= WIDTH / 2 + im_exit.getwidth() / 2) && (m.y >= HEIGHT * 4 / 7 + im_replay.getheight() + 15) && (m.y <= HEIGHT * 4 / 7 + im_replay.getheight() + 15 + im_exit.getheight()))
+			{
+				exit(0); //退出游戏
+			}
+			else
+				continue;
+		}
+	}
 }
 
 void StartMenu()
@@ -165,11 +253,13 @@ void StartMenu()
 	IMAGE im_bk;//定义背景图片
 	IMAGE im_title;//定义标题图片
 	IMAGE im_continue;//定义图片
-	loadimage(&im_play, _T("./res/play1.png")); //载入开始游戏按钮图片
-	loadimage(&im_bk, _T("./res/background.png")); //载入背景图片
-	loadimage(&im_title, _T("./res/title.png")); //载入标题图片
-	putimagePng(WIDTH / 2 - im_play.getwidth() / 2, HEIGHT * 4 / 7, &im_play); //加载开始游戏图片
-	putimagePng(WIDTH / 2 - im_title.getwidth() / 2, HEIGHT / 5, &im_title); //加载“跳一跳'图片
+	loadimage(&im_play, _T("./res/play1.png"));//载入开始游戏按钮图片
+	loadimage(&im_bk, _T("./res/background.png"));//载入背景图片
+	loadimage(&im_title, _T("./res/title.png"));//载入标题图片
+	loadimage(&im_continue, _T("./res/continue.png"));//载入继续游戏图片
+	putimagePng(WIDTH / 2 - im_play.getwidth() / 2, HEIGHT * 4 / 7, &im_play);//加载开始游戏图片
+	putimagePng(WIDTH / 2 - im_continue.getwidth() / 2, HEIGHT * 4 / 7 + im_play.getheight() + 15, &im_continue);//加载开始游戏图片
+	putimagePng(WIDTH / 2 - im_title.getwidth() / 2, HEIGHT / 5, &im_title);//加载“跳一跳'图片
 
 	//鼠标点击“开始游戏”
 	while (1)//循环等待用户动作
@@ -186,6 +276,22 @@ void StartMenu()
 				m = getmessage(EM_MOUSE); //再次获取鼠标信息
 				if (m.message == WM_LBUTTONUP)//如果释放鼠标左键
 					break; //等待鼠标抬起后再退出循环，解决start_t未初始化问题
+			}
+			else if ((m.x >= WIDTH / 2 - im_continue.getwidth() / 2) && (m.x <= WIDTH / 2 + im_continue.getwidth() / 2) && (m.y >= HEIGHT * 4 / 7 + im_play.getheight() + 15) && (m.y <= HEIGHT * 4 / 7 + im_play.getheight() + 15 + im_continue.getheight()))
+			{
+				m = getmessage(EM_MOUSE); //再次获取鼠标信息
+				if (m.message == WM_LBUTTONUP)//如果释放鼠标左键
+				{
+					if (_access(".\\gameRecord.dat", 0) == 0)
+					{
+						readRecordFile();
+						break;
+					}
+					else
+					{
+						break;
+					}
+				}
 			}
 			else
 				continue;
@@ -408,6 +514,64 @@ void PlayerMove()
 		}
 	}
 	Failure();
+}
+
+void Pause()
+{
+	LoadImage();
+	putimagePng(WIDTH - im_pause.getwidth() / 2 - 50, 50, &im_pause);
+
+	ExMessage m; //记录鼠标动作
+	m = getmessage(EM_MOUSE);
+	if (m.message == WM_LBUTTONDOWN)//鼠标移动到重新开始游戏按钮处并且点击
+	{
+		if ((m.x >= WIDTH - im_pause.getwidth() / 2 - 50) && (m.x <= WIDTH + im_pause.getwidth() / 2 - 50) && (m.y >= 50) && (m.y <= 50 + im_pause.getheight()))
+		{
+			m = getmessage(EM_MOUSE); //再次获取鼠标信息
+			if (m.message == WM_LBUTTONUP)//如果释放鼠标左键
+			{
+				IMAGE im_exit; //定义退出游戏图片
+				IMAGE im_replay; //定义重新开始图片
+				IMAGE im_continue; //定义退出游戏图片
+				loadimage(&im_replay, _T("./res/replay1.png")); //载入重新按钮图片
+				loadimage(&im_continue, _T("./res/continue.png")); //载入继续图片
+				loadimage(&im_exit, _T("./res/exit.png")); //载入重新按钮图片
+				DrawStill(1);
+				putimagePng(WIDTH / 2 - im_continue.getwidth() / 2, HEIGHT * 1 / 5, &im_continue);//加载继续开始按钮图片
+				putimagePng(WIDTH / 2 - im_replay.getwidth() / 2, HEIGHT * 2 / 5, &im_replay);//加载重新开始按钮图片
+				putimagePng(WIDTH / 2 - im_exit.getwidth() / 2, HEIGHT * 3 / 5, &im_exit);//加载退出按钮图片
+
+				while (1)//循环等待用户动作
+				{
+					m = getmessage(EM_MOUSE);
+					if (m.message == WM_LBUTTONDOWN)//鼠标移动到重新开始游戏按钮处并且点击
+					{
+						if ((m.x >= WIDTH / 2 - im_replay.getwidth() / 2) && (m.x <= WIDTH / 2 + im_replay.getwidth() / 2) && (m.y >= HEIGHT * 2 / 5) && (m.y <= HEIGHT * 2 / 5 + im_replay.getheight()))
+						{
+							m = getmessage(EM_MOUSE); //再次获取鼠标信息
+							if (m.message == WM_LBUTTONUP)//如果释放鼠标左键
+							{
+								cleardevice();
+								StartGame();
+								PlayerMove();
+							}
+						}
+						else if ((m.x >= WIDTH / 2 - im_continue.getwidth() / 2) && (m.x <= WIDTH / 2 + im_continue.getwidth() / 2) && (m.y >= HEIGHT * 3 / 5) && (m.y <= HEIGHT * 3 / 5 + im_continue.getheight()))
+						{
+							cleardevice();
+							DrawStill(1);
+							PlayerMove();
+						}
+						else if ((m.x >= WIDTH / 2 - im_exit.getwidth() / 2) && (m.x <= WIDTH / 2 + im_exit.getwidth() / 2) && (m.y >= HEIGHT * 3 / 5) && (m.y <= HEIGHT * 3 / 5 + im_exit.getheight()))
+						{
+							writeRecordFile();
+							exit(0);
+						}
+					}
+				}
+			}
+		}
+	}
 }
 
 int main()
