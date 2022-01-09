@@ -16,7 +16,7 @@ IMAGE im_pause;//定义帮助按钮图片
 int score = 0; //记录得分
 int id = 0; //记录玩家所在盒子的ID
 int count = 0; //记录未转向的盒子个数
-int IsFail = 0; //记录游戏是否失败
+int IsContinue = 0; //记录游戏是否失败
 
 void PrintScore(float x, float y, int fheight);
 void StartGame();
@@ -35,7 +35,7 @@ struct Box //定义结构体记录盒子相关信息
 	double c_y; //记录盒子表面中心y坐标
 	int dir; //记录下一个盒子出现的方向,定义方向（0为左，1为右）
 	int boxid; //记录盒子的图片ID
-	IMAGE im_box; //记录盒子图片
+	//IMAGE im_box; //记录盒子图片
 };
 
 struct Player player = { WIDTH / 3.0, HEIGHT * 2.0 / 3 }; //结构体记录玩家位置
@@ -86,7 +86,7 @@ void readRecordFile()  //读取游戏数据文件存档
 {
 	int i; //定义计数器
 	FILE* fp; //定义文件
-	fopen_s(&fp, ".\\gameRecord.dat", "wr+");
+	fopen_s(&fp, ".\\gameRecord.dat", "r");
 	if (fp)
 	{
 		for (i = 0;i < 15;i++)
@@ -159,7 +159,7 @@ void ProduceBox()//继承旧的盒子并且生成新的盒子
 			box[i].c_y = box[i - 1].c_y - distance;
 		}
 		box[i].boxid = rand() % 7;
-		box[i].im_box = im_box[box[i].boxid]; //随机获取盒子图片
+		//box[i].im_box = im_box[box[i].boxid]; //随机获取盒子图片
 	}
 }
 
@@ -284,7 +284,7 @@ void StartMenu()
 				{
 					if (_access(".\\gameRecord.dat", 0) == 0)
 					{
-						readRecordFile();
+						IsContinue = 1;
 						break;
 					}
 					else
@@ -303,52 +303,64 @@ void StartMenu()
 void StartGame()
 {
 	//重置属性
-	LoadImage();
-	count = 0;
-	score = 0;
-	player.x = WIDTH / 3.0;
-	player.y = HEIGHT * 2.0 / 3;
-
-	//初始化玩家与盒子
-	int i; //计数器
-	double distance;//记录盒子y方向移动距离
-	box[0] = { WIDTH / 3.0,HEIGHT * 2.0 / 3,1,1 ,im_box[0] };
-	for (i = 1;i < 15;i++)
+	if (IsContinue != 1)
 	{
-		count++; //计数器+1
-		if (count > 2)//当未转向的盒子数大于2时
+		LoadImage();
+		count = 0;
+		score = 0;
+		player.x = WIDTH / 3.0;
+		player.y = HEIGHT * 2.0 / 3;
+
+		//初始化玩家与盒子
+		int i; //计数器
+		double distance;//记录盒子y方向移动距离
+		box[0] = { WIDTH / 3.0,HEIGHT * 2.0 / 3,1,1};
+		for (i = 1;i < 15;i++)
 		{
-			box[i].dir = rand() % 2;//生成下一个盒子方向
-			if (box[i].dir != box[i - 1].dir)//如果盒子转向
+			count++; //计数器+1
+			if (count > 2)//当未转向的盒子数大于2时
 			{
-				count = 0;//重新开始计数
+				box[i].dir = rand() % 2;//生成下一个盒子方向
+				if (box[i].dir != box[i - 1].dir)//如果盒子转向
+				{
+					count = 0;//重新开始计数
+				}
+			}
+			else //当未转向的盒子数小于等于2时
+			{
+				box[i].dir = box[i - 1].dir;//盒子方向一致
+			}
+			distance = 151.5 / sqrt(3) + rand() % 150 + 20; //随机生成相邻盒子之间的距离（盒子之间最小距离）
+			if (box[i - 1].dir == 1) //如果本盒子在前一个盒子右侧
+			{
+				box[i].c_x = box[i - 1].c_x + sqrt(3) * distance;
+				box[i].c_y = box[i - 1].c_y - distance;
+			}
+			else if (box[i - 1].dir == 0)//如果本盒子在前一个盒子左侧
+			{
+				box[i].c_x = box[i - 1].c_x - sqrt(3) * distance;
+				box[i].c_y = box[i - 1].c_y - distance;
 			}
 		}
-		else //当未转向的盒子数小于等于2时
+		for (i = 14;i >= 0;i--)//倒序生成盒子（营造覆盖效果）
 		{
-			box[i].dir = box[i - 1].dir;//盒子方向一致
+			box[i].boxid = rand() % 7;
+			//box[i].im_box = im_box[box[i].boxid]; //随机获取盒子图片
+			putimagePng(box[i].c_x - 151.5, box[i].c_y - 90.3, &im_box[box[i].boxid]);//加载盒子图片
 		}
-		distance = 151.5 / sqrt(3) + rand() % 150 + 20; //随机生成相邻盒子之间的距离（盒子之间最小距离）
-		if (box[i - 1].dir == 1) //如果本盒子在前一个盒子右侧
-		{
-			box[i].c_x = box[i - 1].c_x + sqrt(3) * distance;
-			box[i].c_y = box[i - 1].c_y - distance;
-		}
-		else if (box[i - 1].dir == 0)//如果本盒子在前一个盒子左侧
-		{
-			box[i].c_x = box[i - 1].c_x - sqrt(3) * distance;
-			box[i].c_y = box[i - 1].c_y - distance;
-		}
+		putimagePng(WIDTH - im_pause.getwidth() / 2 - 70, 50, &im_pause);
+		fillcircle(player.x, player.y, 10);//绘制玩家
+		PrintScore(50, 50, 50);//输出分数
 	}
-	for (i = 14;i >= 0;i--)//倒序生成盒子（营造覆盖效果）
+	else
 	{
-		box[i].boxid = rand() % 7;
-		box[i].im_box = im_box[box[i].boxid]; //随机获取盒子图片
-		putimagePng(box[i].c_x - 151.5, box[i].c_y - 90.3, &im_box[box[i].boxid]);//加载盒子图片
-	}
-	putimagePng(WIDTH - im_pause.getwidth() / 2 - 70, 50, &im_pause);
-	fillcircle(player.x, player.y, 10);//绘制玩家
-	PrintScore(50, 50, 50);//输出分数
+		readRecordFile();
+		BeginBatchDraw();
+		cleardevice();
+		DrawStill(1);
+		EndBatchDraw();
+		PlayerMove();
+	}	
 }
 
 void PlayerMove()
@@ -433,7 +445,7 @@ void PlayerMove()
 				//绘制静止盒子和玩家
 				for (j = 14;j >= 0;j--)
 				{
-					putimagePng(box[j].c_x - 151.5, box[j].c_y - 90.3, &box[j].im_box);
+					putimagePng(box[j].c_x - 151.5, box[j].c_y - 90.3, &im_box[box[j].boxid]);
 				}
 				fillcircle(player.x, player.y, 10);
 				PrintScore(50, 50, 50);
@@ -482,7 +494,7 @@ void PlayerMove()
 					//Pause();
 					box[j].c_x -= x_distance / n; //计算每一帧玩家X移动距离
 					box[j].c_y -= y_distance / n;//计算每一帧玩家Y移动距离
-					putimagePng(box[j].c_x - 151.5, box[j].c_y - 90.3, &box[j].im_box);//
+					putimagePng(box[j].c_x - 151.5, box[j].c_y - 90.3, &im_box[box[j].boxid]);//
 				}
 				fillcircle(player.x, player.y, 10); //绘制玩家新位置
 				PrintScore(50, 50, 50);
@@ -491,7 +503,7 @@ void PlayerMove()
 			}
 			EndBatchDraw(); //结束批量绘图
 		}
-		else if (((player.x - box[id - 1].c_x) * (player.x - box[id - 1].c_x) + (player.y - box[id - 1].c_y) * (player.y - box[id - 1].c_y)) <= box[id - 1].im_box.getwidth() * box[id - 1].im_box.getwidth() / 4.0)
+		else if (((player.x - box[id - 1].c_x) * (player.x - box[id - 1].c_x) + (player.y - box[id - 1].c_y) * (player.y - box[id - 1].c_y)) <= 5780)
 		{
 			continue;
 		}
@@ -510,12 +522,12 @@ void PlayerMove()
 					t = 0;
 				for (j = 14;j >= id + t;j--) //倒序生成盒子（营造覆盖效果）
 				{
-					putimagePng(box[j].c_x - 151.5, box[j].c_y - 90.3, &box[j].im_box);//加载盒子图片
+					putimagePng(box[j].c_x - 151.5, box[j].c_y - 90.3, &im_box[box[j].boxid]);//加载盒子图片
 				}
 				fillcircle(player.x, player.y, 10); //绘制玩家新位置
 				for (j = id + t - 1;j >= 0;j--)//倒序生成盒子（营造覆盖效果）
 				{
-					putimagePng(box[j].c_x - 151.5, box[j].c_y - 90.3, &box[j].im_box);//加载盒子图片
+					putimagePng(box[j].c_x - 151.5, box[j].c_y - 90.3, &im_box[box[j].boxid]);//加载盒子图片
 				}
 				PrintScore(50, 50, 50);//输出分数
 				FlushBatchDraw();
@@ -534,7 +546,10 @@ void Pause()
 	m = getmessage(EM_MOUSE);
 	if (m.message == WM_LBUTTONDOWN)//鼠标移动到重新开始游戏按钮处并且点击
 	{
-		if ((m.x >= WIDTH - im_pause.getwidth() / 2 - 50) && (m.x <= WIDTH + im_pause.getwidth() / 2 - 50) && (m.y >= 50) && (m.y <= 50 + im_pause.getheight()))
+		if ((m.x >= WIDTH - im_pause.getwidth() / 2 - 50) 
+			&& (m.x <= WIDTH + im_pause.getwidth() / 2 - 50) 
+			&& (m.y >= 50) 
+			&& (m.y <= 50 + im_pause.getheight()))
 		{
 			m = getmessage(EM_MOUSE); //再次获取鼠标信息
 			if (m.message == WM_LBUTTONUP)//如果释放鼠标左键
