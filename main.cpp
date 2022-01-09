@@ -58,7 +58,7 @@ void DrawStill(int includeplayer)
 	int i;
 	for (i = 14;i >= 0;i--) //倒序生成盒子（营造覆盖效果）
 	{
-		putimagePng(box[i].c_x - 151.5, box[i].c_y - 90.3, &box[i].im_box);//加载盒子图片
+		putimagePng(box[i].c_x - 151.5, box[i].c_y - 90.3, &im_box[box[i].boxid]);//加载盒子图片
 	}
 	if (includeplayer == 1)
 		fillcircle(player.x, player.y, 10);//绘制玩家
@@ -86,7 +86,7 @@ void readRecordFile()  //读取游戏数据文件存档
 {
 	int i; //定义计数器
 	FILE* fp; //定义文件
-	fopen_s(&fp, ".\\gameRecord.dat", "w");
+	fopen_s(&fp, ".\\gameRecord.dat", "wr+");
 	if (fp)
 	{
 		for (i = 0;i < 15;i++)
@@ -344,8 +344,9 @@ void StartGame()
 	{
 		box[i].boxid = rand() % 7;
 		box[i].im_box = im_box[box[i].boxid]; //随机获取盒子图片
-		putimagePng(box[i].c_x - 151.5, box[i].c_y - 90.3, &box[i].im_box);//加载盒子图片
+		putimagePng(box[i].c_x - 151.5, box[i].c_y - 90.3, &im_box[box[i].boxid]);//加载盒子图片
 	}
+	putimagePng(WIDTH - im_pause.getwidth() / 2 - 70, 50, &im_pause);
 	fillcircle(player.x, player.y, 10);//绘制玩家
 	PrintScore(50, 50, 50);//输出分数
 }
@@ -356,6 +357,7 @@ void PlayerMove()
 	id = Searchid(); //确定目前玩家所在方块的ID
 	while (((player.x - box[id].c_x) * (player.x - box[id].c_x) + (player.y - box[id].c_y) * (player.y - box[id].c_y)) <= 5785 || ((player.x - box[id - 1].c_x) * (player.x - box[id - 1].c_x) + (player.y - box[id - 1].c_y) * (player.y - box[id - 1].c_y)) <= 5785)
 	{
+		putimagePng(WIDTH - im_pause.getwidth() / 2 - 70, 50, &im_pause);
 		//获取鼠标按下时长
 		//定义结构体获取鼠标按下与松开时间
 		double t;
@@ -364,16 +366,26 @@ void PlayerMove()
 			ExMessage m; //记录鼠标动作
 			clock_t start_t = clock(), stop_t;
 			m = getmessage(EM_MOUSE);
-			if (m.message == WM_LBUTTONDOWN) //如果鼠标左键按下
+			if (m.message == WM_LBUTTONDOWN)
 			{
-				start_t = clock(); // 获取鼠标按下时间 
-			}
-			if (m.message == WM_LBUTTONUP)//如果释放鼠标左键
-			{
-				stop_t = clock(); //获取鼠标释放时间
-				t = (double)(stop_t - start_t);//计算鼠标按下时长
-				break; //跳出循环
-			}
+				start_t = clock();
+				if ((m.x >= WIDTH - im_pause.getwidth() / 2 - 70) && (m.x <= WIDTH + im_pause.getwidth() / 2 - 70) && (m.y >= 50) && (m.y <= 50 + im_pause.getheight()))
+				{
+					m = getmessage(EM_MOUSE);
+					if (m.message == WM_LBUTTONUP)//如果释放鼠标左键
+					Pause();
+				}
+				else
+				{
+					m = getmessage(EM_MOUSE); //再次获取鼠标信息
+					if (m.message == WM_LBUTTONUP)//如果释放鼠标左键
+					{
+						stop_t = clock(); //获取鼠标释放时间
+						t = (double)(stop_t - start_t);//计算鼠标按下时长
+						break; //跳出循环
+					}
+				}
+			}		
 		}
 
 		//玩家开始跳跃
@@ -518,9 +530,6 @@ void PlayerMove()
 
 void Pause()
 {
-	LoadImage();
-	putimagePng(WIDTH - im_pause.getwidth() / 2 - 50, 50, &im_pause);
-
 	ExMessage m; //记录鼠标动作
 	m = getmessage(EM_MOUSE);
 	if (m.message == WM_LBUTTONDOWN)//鼠标移动到重新开始游戏按钮处并且点击
@@ -544,9 +553,12 @@ void Pause()
 				while (1)//循环等待用户动作
 				{
 					m = getmessage(EM_MOUSE);
-					if (m.message == WM_LBUTTONDOWN)//鼠标移动到重新开始游戏按钮处并且点击
+					if (m.message == WM_LBUTTONDOWN)//鼠标点击
 					{
-						if ((m.x >= WIDTH / 2 - im_replay.getwidth() / 2) && (m.x <= WIDTH / 2 + im_replay.getwidth() / 2) && (m.y >= HEIGHT * 2 / 5) && (m.y <= HEIGHT * 2 / 5 + im_replay.getheight()))
+						if ((m.x >= WIDTH / 2 - im_replay.getwidth() / 2) 
+							&& (m.x <= WIDTH / 2 + im_replay.getwidth() / 2) 
+							&& (m.y >= HEIGHT * 2 / 5) 
+							&& (m.y <= HEIGHT * 2 / 5 + im_replay.getheight()))//如果鼠标点击区域在重新开始
 						{
 							m = getmessage(EM_MOUSE); //再次获取鼠标信息
 							if (m.message == WM_LBUTTONUP)//如果释放鼠标左键
@@ -556,16 +568,32 @@ void Pause()
 								PlayerMove();
 							}
 						}
-						else if ((m.x >= WIDTH / 2 - im_continue.getwidth() / 2) && (m.x <= WIDTH / 2 + im_continue.getwidth() / 2) && (m.y >= HEIGHT * 3 / 5) && (m.y <= HEIGHT * 3 / 5 + im_continue.getheight()))
+						else if ((m.x >= WIDTH / 2 - im_continue.getwidth() / 2) 
+							&& (m.x <= WIDTH / 2 + im_continue.getwidth() / 2) 
+							&& (m.y >= HEIGHT * 1 / 5) 
+							&& (m.y <= HEIGHT * 1 / 5 + im_continue.getheight()))//点击继续游戏
 						{
-							cleardevice();
-							DrawStill(1);
-							PlayerMove();
+							m = getmessage(EM_MOUSE); //再次获取鼠标信息
+							if (m.message == WM_LBUTTONUP)//如果释放鼠标左键
+							{
+								BeginBatchDraw();
+								cleardevice();
+								DrawStill(1);
+								EndBatchDraw();
+								PlayerMove();
+							}	
 						}
-						else if ((m.x >= WIDTH / 2 - im_exit.getwidth() / 2) && (m.x <= WIDTH / 2 + im_exit.getwidth() / 2) && (m.y >= HEIGHT * 3 / 5) && (m.y <= HEIGHT * 3 / 5 + im_exit.getheight()))
+						else if ((m.x >= WIDTH / 2 - im_exit.getwidth() / 2) 
+							&& (m.x <= WIDTH / 2 + im_exit.getwidth() / 2) 
+							&& (m.y >= HEIGHT * 3 / 5) 
+							&& (m.y <= HEIGHT * 3 / 5 + im_exit.getheight()))//点击退出游戏
 						{
-							writeRecordFile();
-							exit(0);
+							m = getmessage(EM_MOUSE); //再次获取鼠标信息
+							if (m.message == WM_LBUTTONUP)//如果释放鼠标左键
+							{
+								writeRecordFile();
+								exit(0);
+							}	
 						}
 					}
 				}
